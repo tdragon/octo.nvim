@@ -4,10 +4,80 @@ local fzf = require "fzf-lua"
 local gh = require "octo.gh"
 local queries = require "octo.gh.queries"
 local graphql = require "octo.gh.graphql"
+local queries = require "octo.gh.queries"
 local picker_utils = require "octo.pickers.fzf-lua.pickers.utils"
 local utils = require "octo.utils"
+local config = require "octo.config"
+
+local function get_users(query_name, node_name)
+  local repo = utils.get_remote_name()
+  local owner, name = utils.split_repo(repo)
+  local output = gh.api.graphql {
+    query = queries[query_name],
+    f = { owner = owner, name = name },
+    paginate = true,
+    jq = ".data.repository." .. node_name .. ".nodes",
+    opts = { mode = "sync" },
+  }
+  if utils.is_blank(output) then
+    return {}
+  end
+
+  return utils.get_flatten_pages(output)
+end
+
+local function get_assignable_users()
+  return get_users("assignable_users", "assignableUsers")
+end
+
+local function get_mentionable_users()
+  return get_users("mentionable_users", "mentionableUsers")
+end
+
+-- TODO highlight orgs?
+local function format_display(thing)
+  return thing.id .. " " .. thing.login
+end
 
 return function(cb)
+  local cfg = config.values
+
+  -- Handle assignable and mentionable modes with static lists
+  if cfg.users == "assignable" or cfg.users == "mentionable" then
+    local users = cfg.users == "assignable" and get_assignable_users() or get_mentionable_users()
+
+    if not users or #users == 0 then
+      utils.error("No " .. cfg.users .. " users found")
+      return
+    end
+
+    local formatted_users = {}
+    local results = {}
+    for _, user in ipairs(users) do
+      user.ordinal = format_display(user)
+      formatted_users[user.ordinal] = user
+      table.insert(results, user.ordinal)
+    end
+
+    fzf.fzf_exec(
+      results,
+      vim.tbl_deep_extend("force", picker_utils.dropdown_opts, {
+        fzf_opts = {
+          ["--delimiter"] = " ",
+          ["--with-nth"] = "2..",
+        },
+        actions = {
+          ["default"] = function(selected)
+            local user_entry = formatted_users[selected[1]]
+            cb(user_entry.id)
+          end,
+        },
+      })
+    )
+    return
+  end
+
+  -- Handle search mode with live search (original implementation)
   local formatted_users = {}
 
   local function contents(prompt)
@@ -48,11 +118,6 @@ return function(cb)
             end
           end
         end
-      end
-
-      -- TODO highlight orgs?
-      local function format_display(thing)
-        return thing.id .. " " .. thing.login
       end
 
       local results = {}
