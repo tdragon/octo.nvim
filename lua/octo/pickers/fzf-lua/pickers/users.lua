@@ -85,11 +85,10 @@ return function(cb)
     if not prompt or prompt == "" or utils.is_blank(prompt) then
       return {}
     end
-    local output = gh.api.graphql {
-      query = queries.users,
-      F = { prompt = prompt },
-      paginate = true,
-      opts = { mode = "sync" },
+    local query = graphql("users", prompt[1])
+    local output = gh.run {
+      args = { "api", "graphql", "--paginate", "-f", string.format("query=%s", query) },
+      mode = "sync",
     }
     if output then
       local users = {}
