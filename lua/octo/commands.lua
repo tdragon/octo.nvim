@@ -873,7 +873,7 @@ function M.setup()
     },
     assignee = {
       add = function(...)
-        M.add_user("assignee", { ... })
+        M.add_user("assignee", ...)
       end,
       remove = function(login)
         M.remove_assignee(login)
@@ -881,7 +881,7 @@ function M.setup()
     },
     reviewer = {
       add = function(...)
-        M.add_user("reviewer", { ... })
+        M.add_user("reviewer", ...)
       end,
       remove = function(login)
         M.remove_reviewer(login)
@@ -2388,6 +2388,7 @@ function M.add_user(subject, logins)
       utils.error "Invalid user type"
       return
     end
+
     gh.api.graphql {
       paginate = true,
       query = query,
