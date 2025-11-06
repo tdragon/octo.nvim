@@ -36,7 +36,11 @@ end
 
 -- TODO highlight orgs?
 local function format_display(thing)
-  return thing.id .. " " .. thing.login
+  local display = thing.id .. " " .. thing.login
+  if thing.name and type(thing.name) == "string" and thing.name ~= "" then
+    display = display .. " (" .. thing.name .. ")"
+  end
+  return display
 end
 
 return function(cb)
